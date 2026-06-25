@@ -83,13 +83,21 @@ resource "aws_route53_record" "dmarc" {
   records = ["v=DMARC1; p=none; rua=mailto:${var.alert_email}"]
 }
 
-# ─── VPC Interface Endpoint: SES API ─────────────────────────────────────────
-# Tráfico svc-reservas → SES API (SDK) viaja por PrivateLink sin pasar por NAT.
-# El SG vpc_endpoints permite ingress 443 desde SG-ECS (módulo security_groups).
+# ─── VPC Interface Endpoint: SES ─────────────────────────────────────────────
+# OJO: "com.amazonaws.<region>.ses" NO existe como servicio PrivateLink (el apply
+# falla con "service ... does not exist"). SES solo publica el endpoint SMTP
+# "com.amazonaws.<region>.email-smtp" (puertos 465/587), que no sirve para el SDK
+# de la API SES sobre 443 — ese trafico debe salir por NAT (egress 443 ya
+# permitido en el SG de ECS). Por eso el endpoint se omite en demo y queda
+# condicionado a enable_custom_domain, igual que el resto del modulo SES.
+# Para reactivarlo en el futuro hay que elegir un service_name valido (p. ej.
+# email-smtp con sus puertos) o dejar el trafico SES por NAT.
 
 resource "aws_vpc_endpoint" "ses" {
+  count = var.enable_custom_domain ? 1 : 0
+
   vpc_id              = var.vpc_id
-  service_name        = "com.amazonaws.${var.aws_region}.ses"
+  service_name        = "com.amazonaws.${var.aws_region}.email-smtp"
   vpc_endpoint_type   = "Interface"
   subnet_ids          = var.private_subnet_ids
   security_group_ids  = [var.vpc_endpoints_sg_id]

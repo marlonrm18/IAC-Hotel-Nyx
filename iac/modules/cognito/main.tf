@@ -119,13 +119,15 @@ resource "aws_cognito_user_pool_client" "main" {
     "ALLOW_USER_SRP_AUTH",
   ]
 
+  # Solo atributos estandar de Cognito. "custom:role" requeriria declarar un
+  # schema custom en el user pool; sin el, Cognito rechaza con
+  # "Invalid read attributes specified".
   read_attributes = [
     "email",
     "email_verified",
     "name",
     "given_name",
     "family_name",
-    "custom:role",
   ]
 
   write_attributes = [

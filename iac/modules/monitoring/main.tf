@@ -16,7 +16,19 @@ data "aws_iam_policy_document" "sns_alerts" {
       type        = "AWS"
       identifiers = ["arn:${var.partition}:iam::${var.account_id}:root"]
     }
-    actions   = ["sns:*"]
+    # "sns:*" expande acciones fuera del scope de una topic policy y AWS lo
+    # rechaza con "Policy statement action out of service scope". Se listan solo
+    # las acciones validas a nivel de topic (las que usa la policy por defecto).
+    actions = [
+      "SNS:GetTopicAttributes",
+      "SNS:SetTopicAttributes",
+      "SNS:AddPermission",
+      "SNS:RemovePermission",
+      "SNS:DeleteTopic",
+      "SNS:Subscribe",
+      "SNS:ListSubscriptionsByTopic",
+      "SNS:Publish",
+    ]
     resources = [aws_sns_topic.alerts.arn]
   }
 

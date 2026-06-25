@@ -58,10 +58,10 @@ resource "aws_apigatewayv2_integration" "alb" {
   # 1.0 mantiene compatibilidad con el formato de eventos esperado por el ALB.
   payload_format_version = "1.0"
 
-  request_parameters = {
-    # Reenviar el Host original para que la app sepa el dominio publico.
-    "overwrite:header.X-Forwarded-Host" = "$request.header.Host"
-  }
+  # X-Forwarded-Host es un header restringido: API Gateway no permite mapearlo
+  # ("Operations on header x-forwarded-host are restricted"). El ALB enruta por
+  # path, no por host, asi que no se reenvia ningun header custom. API Gateway ya
+  # propaga el Host y agrega su propia cadena X-Forwarded-* hacia el backend.
 }
 
 # ─── Rutas ───────────────────────────────────────────────────────────────────

@@ -19,25 +19,21 @@
  * Cognito (variables cognito_callback_urls / cognito_logout_urls del IaC).
  */
 window.HOTEL_NYX_CONFIG = {
-  // URL base del API Gateway (sin slash final). Ej: https://api.hotelnyx.com
-  API_BASE_URL: 'https://REEMPLAZAR_API_GATEWAY',
+  // URL base del API Gateway (sin slash final).
+  API_BASE_URL:    "https://2suddte9da.execute-api.us-east-2.amazonaws.com",
 
-  // Hosted UI de Cognito. Ej: https://hotel-nyx-dev.auth.us-east-2.amazoncognito.com
-  COGNITO_HOSTED_UI: 'https://REEMPLAZAR_COGNITO_HOSTED_UI',
-  COGNITO_USER_POOL_ID: 'REEMPLAZAR_USER_POOL_ID',
-  COGNITO_CLIENT_ID: 'REEMPLAZAR_CLIENT_ID',
+  // Hosted UI de Cognito.
+  COGNITO_HOSTED_UI: 'https://hotel-nyx-dev.auth.us-east-2.amazoncognito.com',
+  COGNITO_USER_POOL_ID: 'us-east-2_mpOHhcfwB',
+  COGNITO_CLIENT_ID: '6mvsog8sjk8k7rssvv8tpliiai',
 
-  // Scopes solicitados al iniciar sesion (incluye los custom del resource server).
   COGNITO_SCOPES: 'openid email profile hotel-api/guest:reserve hotel-api/admin:write',
 
-  // Deben coincidir EXACTAMENTE con las URLs registradas en el app client.
-  // Por defecto se calculan a partir del origen actual (CloudFront).
   REDIRECT_URI: window.location.origin + '/login.html',
   LOGOUT_URI: window.location.origin + '/index.html',
 
-  // Public Key de TEST de Mercado Pago (publica, se usa para el checkout).
-  MP_PUBLIC_KEY: 'TEST-REEMPLAZAR_MP_PUBLIC_KEY',
+  // Pega aquí TU Public Key TEST de Mercado Pago (empieza con TEST- o APP_USR-)
+  MP_PUBLIC_KEY: 'APP_USR-d91be1c3-9fe7-4cd4-9564-1c4215709da5',
 
-  // Scope que habilita el panel de administracion.
   ADMIN_SCOPE: 'hotel-api/admin:write',
 };

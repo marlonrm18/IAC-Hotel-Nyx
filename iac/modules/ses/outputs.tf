@@ -14,11 +14,11 @@ output "mail_from_domain" {
 }
 
 output "vpc_endpoint_id" {
-  description = "ID del VPC Interface Endpoint de SES (PrivateLink)"
-  value       = aws_vpc_endpoint.ses.id
+  description = "ID del VPC Interface Endpoint de SES (vacío si enable_custom_domain = false)"
+  value       = var.enable_custom_domain ? aws_vpc_endpoint.ses[0].id : ""
 }
 
 output "vpc_endpoint_dns" {
-  description = "DNS privado del endpoint SES"
-  value       = aws_vpc_endpoint.ses.dns_entry[0]["dns_name"]
+  description = "DNS privado del endpoint SES (vacío si enable_custom_domain = false)"
+  value       = var.enable_custom_domain ? aws_vpc_endpoint.ses[0].dns_entry[0]["dns_name"] : ""
 }

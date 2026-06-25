@@ -25,7 +25,7 @@ resource "aws_vpc_security_group_ingress_rule" "alb_https" {
 # Puerto 80 necesario para que el listener de redirect HTTP→HTTPS funcione.
 resource "aws_vpc_security_group_ingress_rule" "alb_http" {
   security_group_id = aws_security_group.alb.id
-  description       = "HTTP desde internet (redirect 80->443 en ALB listener)"
+  description       = "HTTP desde internet (redirect 80 a 443 en ALB listener)"
   from_port         = 80
   to_port           = 80
   ip_protocol       = "tcp"
@@ -34,7 +34,7 @@ resource "aws_vpc_security_group_ingress_rule" "alb_http" {
 
 resource "aws_vpc_security_group_egress_rule" "alb_to_ecs_reservas" {
   security_group_id            = aws_security_group.alb.id
-  description                  = "ALB -> svc-reservas"
+  description                  = "ALB a svc-reservas"
   from_port                    = 3000
   to_port                      = 3000
   ip_protocol                  = "tcp"
@@ -43,7 +43,7 @@ resource "aws_vpc_security_group_egress_rule" "alb_to_ecs_reservas" {
 
 resource "aws_vpc_security_group_egress_rule" "alb_to_ecs_pagos" {
   security_group_id            = aws_security_group.alb.id
-  description                  = "ALB -> svc-pagos"
+  description                  = "ALB a svc-pagos"
   from_port                    = 3001
   to_port                      = 3001
   ip_protocol                  = "tcp"
@@ -94,7 +94,7 @@ resource "aws_vpc_security_group_egress_rule" "ecs_to_https" {
 
 resource "aws_vpc_security_group_egress_rule" "ecs_to_rds" {
   security_group_id            = aws_security_group.ecs.id
-  description                  = "ECS -> RDS PostgreSQL"
+  description                  = "ECS a RDS PostgreSQL"
   from_port                    = 5432
   to_port                      = 5432
   ip_protocol                  = "tcp"
