@@ -44,7 +44,7 @@ ecs_pagos_max_capacity      = 4
 ecs_cpu_scale_target        = 70
 ecs_alb_requests_per_target = 1000
 ecs_enable_execute_command  = false
-ecs_log_retention_days      = 30
+ecs_log_retention_days      = 365 # Requerido por Checkov: mínimo 365 días de retención para CloudWatch Logs
 
 # RDS — tamaño mínimo razonable; Multi-AZ se mantiene siempre.
 rds_postgres_version               = "16.9"

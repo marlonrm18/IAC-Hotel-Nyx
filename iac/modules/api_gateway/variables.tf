@@ -31,6 +31,12 @@ variable "ecs_logs_key_arn" {
 variable "ecs_log_retention_days" {
   description = "Días de retención del log group de la API"
   type        = number
+   # Validación para cumplir el control de seguridad de Checkov:
+   # la retención de logs no debe ser menor a 365 días.
+    validation {
+    condition     = var.ecs_log_retention_days >= 365
+    error_message = "La retención de logs debe ser de al menos 365 días."
+  }
 }
 
 variable "cognito_user_pool_id" {
