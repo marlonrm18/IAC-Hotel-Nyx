@@ -60,7 +60,9 @@ resource "aws_lb" "main" {
 
   # Solucion al fallo de checkov "CKV_AWS_150"
   # Nota adicional: cuando destruyamos cambiar a false si no, no destruira el ALB
-  enable_deletion_protection = true
+  enable_deletion_protection = false
+  # Solucion al fallo CKV_AWS_131 : revisara tdos los headers y eliminara los que no sean validos, si no se pone a true, el ALB puede rechazar peticiones con headers invalidos(caracteres o espacios invalidos)
+  drop_invalid_header_fields = true
 
   dynamic "access_logs" {
     for_each = var.alb_access_logs_bucket != "" ? [1] : []
