@@ -2,32 +2,40 @@
 # La verificación DNS puede tardar hasta 72 h; Terraform solo crea los recursos.
 # No se usa aws_ses_domain_identity_verification para no bloquear el apply.
 
+# DEMO (enable_custom_domain = false): toda la identidad de dominio SES y sus
+# registros DNS se omiten — sin el dominio propio no se pueden verificar y, además,
+# no existe la hosted zone. El envío de correos no funcionará en la demo (no es
+# bloqueante para el apply). El VPC endpoint de SES (más abajo) se mantiene.
+
 resource "aws_ses_domain_identity" "main" {
+  count  = var.enable_custom_domain ? 1 : 0
   domain = var.domain_name
 }
 
 resource "aws_route53_record" "ses_verification" {
+  count   = var.enable_custom_domain ? 1 : 0
   zone_id = var.route53_zone_id
   name    = "_amazonses.${var.domain_name}"
   type    = "TXT"
   ttl     = 600
-  records = [aws_ses_domain_identity.main.verification_token]
+  records = [aws_ses_domain_identity.main[0].verification_token]
 }
 
 # ─── DKIM ─────────────────────────────────────────────────────────────────────
 # SES genera 3 tokens; cada uno requiere su propio registro CNAME.
 
 resource "aws_ses_domain_dkim" "main" {
-  domain = aws_ses_domain_identity.main.domain
+  count  = var.enable_custom_domain ? 1 : 0
+  domain = aws_ses_domain_identity.main[0].domain
 }
 
 resource "aws_route53_record" "ses_dkim" {
-  count   = 3
+  count   = var.enable_custom_domain ? 3 : 0
   zone_id = var.route53_zone_id
-  name    = "${aws_ses_domain_dkim.main.dkim_tokens[count.index]}._domainkey.${var.domain_name}"
+  name    = "${aws_ses_domain_dkim.main[0].dkim_tokens[count.index]}._domainkey.${var.domain_name}"
   type    = "CNAME"
   ttl     = 600
-  records = ["${aws_ses_domain_dkim.main.dkim_tokens[count.index]}.dkim.amazonses.com"]
+  records = ["${aws_ses_domain_dkim.main[0].dkim_tokens[count.index]}.dkim.amazonses.com"]
 }
 
 # ─── MAIL FROM personalizado: mail.hotelnyx.com ───────────────────────────────
@@ -35,7 +43,8 @@ resource "aws_route53_record" "ses_dkim" {
 # habilita alineación DMARC (same-domain alignment).
 
 resource "aws_ses_domain_mail_from" "main" {
-  domain           = aws_ses_domain_identity.main.domain
+  count            = var.enable_custom_domain ? 1 : 0
+  domain           = aws_ses_domain_identity.main[0].domain
   mail_from_domain = "mail.${var.domain_name}"
 
   # Si falla el lookup MX del subdominio, SES vuelve al dominio raíz en vez de
@@ -44,6 +53,7 @@ resource "aws_ses_domain_mail_from" "main" {
 }
 
 resource "aws_route53_record" "ses_mail_from_mx" {
+  count   = var.enable_custom_domain ? 1 : 0
   zone_id = var.route53_zone_id
   name    = "mail.${var.domain_name}"
   type    = "MX"
@@ -52,6 +62,7 @@ resource "aws_route53_record" "ses_mail_from_mx" {
 }
 
 resource "aws_route53_record" "ses_mail_from_spf" {
+  count   = var.enable_custom_domain ? 1 : 0
   zone_id = var.route53_zone_id
   name    = "mail.${var.domain_name}"
   type    = "TXT"
@@ -64,6 +75,7 @@ resource "aws_route53_record" "ses_mail_from_spf" {
 # en producción tras revisar los reportes en alert_email.
 
 resource "aws_route53_record" "dmarc" {
+  count   = var.enable_custom_domain ? 1 : 0
   zone_id = var.route53_zone_id
   name    = "_dmarc.${var.domain_name}"
   type    = "TXT"

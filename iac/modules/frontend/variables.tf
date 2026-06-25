@@ -13,6 +13,11 @@ variable "domain_name" {
   type        = string
 }
 
+variable "enable_custom_domain" {
+  description = "true = cert ACM us-east-1 + aliases hotelnyx.com/www + records DNS. false (demo) = dominio *.cloudfront.net con el cert por defecto de CloudFront."
+  type        = bool
+}
+
 variable "account_id" {
   description = "ID de la cuenta AWS (nombre del bucket y key policy)"
   type        = string

@@ -234,8 +234,8 @@ output "api_gateway_endpoint" {
 }
 
 output "api_custom_domain_url" {
-  description = "URL publica de la API con dominio custom"
-  value       = "https://api.${var.domain_name}"
+  description = "URL publica de la API con dominio custom (vacío en demo; usar api_gateway_endpoint)"
+  value       = var.enable_custom_domain ? "https://api.${var.domain_name}" : ""
 }
 
 output "api_gateway_domain_name" {

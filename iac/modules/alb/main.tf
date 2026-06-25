@@ -2,8 +2,14 @@
 # Cubre hotelnyx.com y *.hotelnyx.com → sirve al ALB y al API Gateway Regional.
 # El cert de CloudFront (us-east-1) va en el módulo frontend con el provider alias
 # y reutiliza los mismos registros CNAME de validación (output cert_validation_fqdns).
+#
+# DEMO (enable_custom_domain = false): no se crea el certificado ni sus registros
+# de validación — sin dominio propio no se puede validar contra Route53 y el apply
+# se colgaría. El listener pasa a HTTP (ver más abajo).
 
 resource "aws_acm_certificate" "main" {
+  count = var.enable_custom_domain ? 1 : 0
+
   domain_name               = var.domain_name
   subject_alternative_names = ["*.${var.domain_name}"]
   validation_method         = "DNS"
@@ -19,14 +25,14 @@ resource "aws_acm_certificate" "main" {
 
 # Registros CNAME de validación DNS — uno por entrada única en domain_validation_options.
 resource "aws_route53_record" "cert_validation" {
-  for_each = {
-    for dvo in aws_acm_certificate.main.domain_validation_options :
+  for_each = var.enable_custom_domain ? {
+    for dvo in aws_acm_certificate.main[0].domain_validation_options :
     dvo.domain_name => {
       name   = dvo.resource_record_name
       record = dvo.resource_record_value
       type   = dvo.resource_record_type
     }
-  }
+  } : {}
 
   allow_overwrite = true
   name            = each.value.name
@@ -37,7 +43,9 @@ resource "aws_route53_record" "cert_validation" {
 }
 
 resource "aws_acm_certificate_validation" "main" {
-  certificate_arn         = aws_acm_certificate.main.arn
+  count = var.enable_custom_domain ? 1 : 0
+
+  certificate_arn         = aws_acm_certificate.main[0].arn
   validation_record_fqdns = [for r in aws_route53_record.cert_validation : r.fqdn]
 }
 
@@ -130,32 +138,54 @@ resource "aws_lb_target_group" "pagos" {
   }
 }
 
-# ─── Listener: HTTP 80 → redirect permanente a HTTPS ─────────────────────────
+# ─── Listener: HTTP 80 ────────────────────────────────────────────────────────
+# Con dominio (enable_custom_domain = true): redirect permanente 80 → 443.
+# En demo (false): este listener es el principal — responde 404 por defecto y
+# alberga las reglas de path-based routing. CloudFront / API Gateway ponen el
+# HTTPS por delante; el tramo API Gateway → ALB viaja por HTTP en la demo.
 
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.main.arn
   port              = 80
   protocol          = "HTTP"
 
-  default_action {
-    type = "redirect"
-    redirect {
-      port        = "443"
-      protocol    = "HTTPS"
-      status_code = "HTTP_301"
+  dynamic "default_action" {
+    for_each = var.enable_custom_domain ? [1] : []
+    content {
+      type = "redirect"
+      redirect {
+        port        = "443"
+        protocol    = "HTTPS"
+        status_code = "HTTP_301"
+      }
+    }
+  }
+
+  dynamic "default_action" {
+    for_each = var.enable_custom_domain ? [] : [1]
+    content {
+      type = "fixed-response"
+      fixed_response {
+        content_type = "application/json"
+        message_body = jsonencode({ error = "not found" })
+        status_code  = "404"
+      }
     }
   }
 }
 
 # ─── Listener: HTTPS 443 ──────────────────────────────────────────────────────
 # Política TLS: soporta TLS 1.2 y TLS 1.3, elimina cifrados débiles.
+# Solo existe cuando hay certificado ACM (enable_custom_domain = true).
 
 resource "aws_lb_listener" "https" {
+  count = var.enable_custom_domain ? 1 : 0
+
   load_balancer_arn = aws_lb.main.arn
   port              = 443
   protocol          = "HTTPS"
   ssl_policy        = "ELBSecurityPolicy-TLS13-1-2-2021-06"
-  certificate_arn   = aws_acm_certificate_validation.main.certificate_arn
+  certificate_arn   = aws_acm_certificate_validation.main[0].certificate_arn
 
   default_action {
     type = "fixed-response"
@@ -167,10 +197,15 @@ resource "aws_lb_listener" "https" {
   }
 }
 
+# Listener activo donde cuelgan las reglas: HTTPS si hay dominio, HTTP en demo.
+locals {
+  routing_listener_arn = var.enable_custom_domain ? aws_lb_listener.https[0].arn : aws_lb_listener.http.arn
+}
+
 # ─── Reglas de ruteo por path ─────────────────────────────────────────────────
 
 resource "aws_lb_listener_rule" "reservas" {
-  listener_arn = aws_lb_listener.https.arn
+  listener_arn = local.routing_listener_arn
   priority     = 10
 
   action {
@@ -186,7 +221,7 @@ resource "aws_lb_listener_rule" "reservas" {
 }
 
 resource "aws_lb_listener_rule" "pagos" {
-  listener_arn = aws_lb_listener.https.arn
+  listener_arn = local.routing_listener_arn
   priority     = 20
 
   action {

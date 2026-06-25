@@ -67,9 +67,10 @@ module "ecr" {
 module "route53" {
   source = "./modules/route53"
 
-  project     = var.project
-  environment = var.environment
-  domain_name = var.domain_name
+  project              = var.project
+  environment          = var.environment
+  domain_name          = var.domain_name
+  enable_custom_domain = var.enable_custom_domain
 }
 
 # ═══ Capa 2: RDS ════════════════════════════════════════════════════════════
@@ -135,6 +136,7 @@ module "alb" {
   project                    = var.project
   environment                = var.environment
   domain_name                = var.domain_name
+  enable_custom_domain       = var.enable_custom_domain
   route53_zone_id            = module.route53.zone_id
   vpc_id                     = module.networking.vpc_id
   public_subnet_ids          = module.networking.public_subnet_ids
@@ -206,6 +208,7 @@ module "frontend" {
   project                      = var.project
   environment                  = var.environment
   domain_name                  = var.domain_name
+  enable_custom_domain         = var.enable_custom_domain
   account_id                   = local.account_id
   partition                    = local.partition
   frontend_key_arn             = module.kms.frontend_key_arn
@@ -223,6 +226,7 @@ module "api_gateway" {
   environment                = var.environment
   aws_region                 = var.aws_region
   domain_name                = var.domain_name
+  enable_custom_domain       = var.enable_custom_domain
   ecs_logs_key_arn           = module.kms.ecs_logs_key_arn
   ecs_log_retention_days     = var.ecs_log_retention_days
   cognito_user_pool_id       = module.cognito.user_pool_id
@@ -238,15 +242,16 @@ module "api_gateway" {
 module "ses" {
   source = "./modules/ses"
 
-  project             = var.project
-  environment         = var.environment
-  aws_region          = var.aws_region
-  domain_name         = var.domain_name
-  alert_email         = var.alert_email
-  route53_zone_id     = module.route53.zone_id
-  vpc_id              = module.networking.vpc_id
-  private_subnet_ids  = module.networking.private_subnet_ids
-  vpc_endpoints_sg_id = module.security_groups.vpc_endpoints_sg_id
+  project              = var.project
+  environment          = var.environment
+  aws_region           = var.aws_region
+  domain_name          = var.domain_name
+  enable_custom_domain = var.enable_custom_domain
+  alert_email          = var.alert_email
+  route53_zone_id      = module.route53.zone_id
+  vpc_id               = module.networking.vpc_id
+  private_subnet_ids   = module.networking.private_subnet_ids
+  vpc_endpoints_sg_id  = module.security_groups.vpc_endpoints_sg_id
 }
 
 # ═══ Capa 8: monitoring (SNS + alarmas + dashboard) ═════════════════════════

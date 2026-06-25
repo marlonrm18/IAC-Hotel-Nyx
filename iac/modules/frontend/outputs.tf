@@ -29,6 +29,6 @@ output "distribution_hosted_zone_id" {
 }
 
 output "acm_certificate_arn" {
-  description = "ARN del certificado ACM us-east-1 para CloudFront"
-  value       = aws_acm_certificate_validation.cloudfront.certificate_arn
+  description = "ARN del certificado ACM us-east-1 para CloudFront (vacío si enable_custom_domain = false)"
+  value       = var.enable_custom_domain ? aws_acm_certificate_validation.cloudfront[0].certificate_arn : ""
 }

@@ -7,6 +7,8 @@
 # Todos reciben este zone_id como input.
 
 resource "aws_route53_zone" "main" {
+  count = var.enable_custom_domain ? 1 : 0
+
   name = var.domain_name
 
   tags = {

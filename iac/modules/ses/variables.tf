@@ -18,6 +18,11 @@ variable "domain_name" {
   type        = string
 }
 
+variable "enable_custom_domain" {
+  description = "true = identidad de dominio SES + DKIM + MAIL FROM + records DNS. false (demo) = se omiten (sin dominio no se puede verificar). El VPC endpoint de SES se mantiene siempre."
+  type        = bool
+}
+
 variable "alert_email" {
   description = "Correo de reportes DMARC (rua)"
   type        = string

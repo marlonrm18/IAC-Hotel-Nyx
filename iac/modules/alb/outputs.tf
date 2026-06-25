@@ -1,10 +1,10 @@
 output "acm_certificate_arn" {
-  description = "ARN del certificado ACM us-east-2 validado (ALB + API Gateway Regional)"
-  value       = aws_acm_certificate_validation.main.certificate_arn
+  description = "ARN del certificado ACM us-east-2 validado (vacío si enable_custom_domain = false)"
+  value       = var.enable_custom_domain ? aws_acm_certificate_validation.main[0].certificate_arn : ""
 }
 
 output "cert_validation_record_fqdns" {
-  description = "FQDNs de los registros CNAME de validación (reutilizados por el cert de CloudFront)"
+  description = "FQDNs de los registros CNAME de validación (vacío si enable_custom_domain = false)"
   value       = [for r in aws_route53_record.cert_validation : r.fqdn]
 }
 
@@ -29,8 +29,8 @@ output "alb_arn_suffix" {
 }
 
 output "listener_https_arn" {
-  description = "ARN del listener HTTPS 443 (dependencia de los servicios ECS)"
-  value       = aws_lb_listener.https.arn
+  description = "ARN del listener que enruta el tráfico (HTTPS 443 con dominio; HTTP 80 en demo)"
+  value       = local.routing_listener_arn
 }
 
 output "tg_reservas_arn" {

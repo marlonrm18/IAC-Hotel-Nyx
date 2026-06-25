@@ -29,6 +29,21 @@ variable "domain_name" {
   default     = "hotelnyx.com"
 }
 
+# Interruptor de la capa de dominio propio (Route53 + ACM + custom domains + SES).
+#   false (demo) → se usan SOLO los endpoints nativos de AWS: CloudFront
+#                  *.cloudfront.net (cert por defecto) y el endpoint execute-api
+#                  de API Gateway. No se crea la hosted zone, ni certificados ACM,
+#                  ni custom domains, ni la identidad SES. El ALB sirve por HTTP.
+#   true  (prod) → se reactiva todo: hosted zone, certs ACM validados por DNS,
+#                  api.<dominio>, alias apex/www → CloudFront, listener HTTPS y SES.
+# var.domain_name se sigue usando como referencia lógica (env vars de ECS, ARNs
+# de IAM) aunque la capa de DNS/cert esté desactivada; eso no bloquea el apply.
+variable "enable_custom_domain" {
+  description = "Activar la capa de dominio propio (Route53/ACM/custom domains/SES). false = demo con URLs nativas de AWS."
+  type        = bool
+  default     = false
+}
+
 variable "availability_zones" {
   description = "Lista de AZs a usar dentro de la región principal"
   type        = list(string)

@@ -13,8 +13,13 @@ variable "domain_name" {
   type        = string
 }
 
+variable "enable_custom_domain" {
+  description = "true = ACM + listener HTTPS 443; false (demo) = sin cert, listener HTTP 80 sirve el tráfico directamente."
+  type        = bool
+}
+
 variable "route53_zone_id" {
-  description = "ID de la hosted zone donde se crean los registros de validación ACM"
+  description = "ID de la hosted zone donde se crean los registros de validación ACM (sin uso si enable_custom_domain = false)"
   type        = string
 }
 

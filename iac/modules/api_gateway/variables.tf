@@ -18,6 +18,11 @@ variable "domain_name" {
   type        = string
 }
 
+variable "enable_custom_domain" {
+  description = "true = custom domain api.<domain> + alias DNS + integración HTTPS al ALB. false (demo) = endpoint nativo execute-api e integración HTTP al ALB."
+  type        = bool
+}
+
 variable "ecs_logs_key_arn" {
   description = "ARN de la CMK para cifrar el log group de la API"
   type        = string

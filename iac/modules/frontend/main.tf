@@ -129,7 +129,12 @@ data "aws_iam_policy_document" "frontend_bucket" {
 # CloudFront solo acepta certificados en us-east-1, independientemente de la
 # región principal del proyecto.
 
+# DEMO (enable_custom_domain = false): no se crea el cert — CloudFront usa su
+# certificado por defecto (*.cloudfront.net), que no requiere validación DNS.
+
 resource "aws_acm_certificate" "cloudfront" {
+  count = var.enable_custom_domain ? 1 : 0
+
   provider                  = aws.us_east_1
   domain_name               = var.domain_name
   subject_alternative_names = ["*.${var.domain_name}"]
@@ -146,8 +151,10 @@ resource "aws_acm_certificate" "cloudfront" {
 # registro _xxx.hotelnyx.com para validar *.hotelnyx.com y hotelnyx.com en
 # cualquier región, evitando registros duplicados en Route 53.
 resource "aws_acm_certificate_validation" "cloudfront" {
+  count = var.enable_custom_domain ? 1 : 0
+
   provider                = aws.us_east_1
-  certificate_arn         = aws_acm_certificate.cloudfront.arn
+  certificate_arn         = aws_acm_certificate.cloudfront[0].arn
   validation_record_fqdns = var.cert_validation_record_fqdns
 }
 
@@ -169,7 +176,9 @@ resource "aws_cloudfront_distribution" "main" {
   comment             = "${var.project}-${var.environment} frontend SPA"
   default_root_object = "index.html"
   price_class         = var.cloudfront_price_class
-  aliases             = [var.domain_name, "www.${var.domain_name}"]
+
+  # Sin dominio propio no se declaran aliases → se usa el dominio *.cloudfront.net.
+  aliases = var.enable_custom_domain ? [var.domain_name, "www.${var.domain_name}"] : []
 
   origin {
     domain_name              = aws_s3_bucket.frontend.bucket_regional_domain_name
@@ -211,10 +220,13 @@ resource "aws_cloudfront_distribution" "main" {
     }
   }
 
+  # Con dominio: cert ACM us-east-1 + SNI. En demo: certificado por defecto de
+  # CloudFront (no admite ssl_support_method ni minimum_protocol_version custom).
   viewer_certificate {
-    acm_certificate_arn      = aws_acm_certificate_validation.cloudfront.certificate_arn
-    ssl_support_method       = "sni-only"
-    minimum_protocol_version = "TLSv1.2_2021"
+    cloudfront_default_certificate = var.enable_custom_domain ? null : true
+    acm_certificate_arn            = var.enable_custom_domain ? aws_acm_certificate_validation.cloudfront[0].certificate_arn : null
+    ssl_support_method             = var.enable_custom_domain ? "sni-only" : null
+    minimum_protocol_version       = var.enable_custom_domain ? "TLSv1.2_2021" : null
   }
 
   tags = { Name = "${var.project}-${var.environment}-cf-distribution" }
@@ -233,7 +245,7 @@ locals {
 }
 
 resource "aws_route53_record" "cloudfront" {
-  for_each = local.cf_alias_records
+  for_each = var.enable_custom_domain ? local.cf_alias_records : {}
 
   zone_id = var.route53_zone_id
   name    = each.value.name

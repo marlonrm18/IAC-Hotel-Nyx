@@ -48,9 +48,11 @@ resource "aws_apigatewayv2_authorizer" "cognito" {
 # pueda aplicar sus listener rules de path-based routing.
 
 resource "aws_apigatewayv2_integration" "alb" {
-  api_id             = aws_apigatewayv2_api.main.id
-  integration_type   = "HTTP_PROXY"
-  integration_uri    = "https://${var.alb_dns_name}"
+  api_id           = aws_apigatewayv2_api.main.id
+  integration_type = "HTTP_PROXY"
+  # En demo el ALB solo tiene listener HTTP 80 (no hay cert ACM) → integrar por
+  # HTTP. Con dominio propio el ALB expone HTTPS 443 con el cert validado.
+  integration_uri    = var.enable_custom_domain ? "https://${var.alb_dns_name}" : "http://${var.alb_dns_name}"
   integration_method = "ANY"
 
   # 1.0 mantiene compatibilidad con el formato de eventos esperado por el ALB.
@@ -126,8 +128,14 @@ resource "aws_apigatewayv2_stage" "default" {
 
 # ─── Dominio custom: api.hotelnyx.com ─────────────────────────────────────────
 # Reutiliza el certificado wildcard *.hotelnyx.com ya validado en el módulo alb.
+#
+# DEMO (enable_custom_domain = false): no se crea el custom domain ni el mapping
+# ni el alias DNS — los clientes usan el endpoint nativo execute-api
+# (output api_endpoint). Sin dominio no hay cert ACM regional que asociar.
 
 resource "aws_apigatewayv2_domain_name" "api" {
+  count = var.enable_custom_domain ? 1 : 0
+
   domain_name = "api.${var.domain_name}"
 
   domain_name_configuration {
@@ -140,8 +148,10 @@ resource "aws_apigatewayv2_domain_name" "api" {
 }
 
 resource "aws_apigatewayv2_api_mapping" "api" {
+  count = var.enable_custom_domain ? 1 : 0
+
   api_id      = aws_apigatewayv2_api.main.id
-  domain_name = aws_apigatewayv2_domain_name.api.id
+  domain_name = aws_apigatewayv2_domain_name.api[0].id
   stage       = aws_apigatewayv2_stage.default.id
 }
 
@@ -149,13 +159,15 @@ resource "aws_apigatewayv2_api_mapping" "api" {
 # Solo registro A: API Gateway Regional HTTP API no expone endpoint IPv6.
 
 resource "aws_route53_record" "api_gateway" {
+  count = var.enable_custom_domain ? 1 : 0
+
   zone_id = var.route53_zone_id
   name    = "api.${var.domain_name}"
   type    = "A"
 
   alias {
-    name                   = aws_apigatewayv2_domain_name.api.domain_name_configuration[0].target_domain_name
-    zone_id                = aws_apigatewayv2_domain_name.api.domain_name_configuration[0].hosted_zone_id
+    name                   = aws_apigatewayv2_domain_name.api[0].domain_name_configuration[0].target_domain_name
+    zone_id                = aws_apigatewayv2_domain_name.api[0].domain_name_configuration[0].hosted_zone_id
     evaluate_target_health = false
   }
 }
