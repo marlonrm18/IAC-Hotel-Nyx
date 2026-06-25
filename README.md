@@ -1,8 +1,11 @@
 # Hotel Nyx — Sistema de Reservas de Habitaciones
 
 UPAO · Ingeniería de Sistemas e Inteligencia Artificial
-Curso: Infraestructura como Código · Docente: Walter Ivan Leturia Rodriguez
-Grupo 5 · Rivas Machuca, Marlon Sebastian · Toribio Flores, Joe Alexis
+- Curso: Infraestructura como Código 
+- Docente: Walter Ivan Leturia Rodriguez
+#### Grupo 5
+- Rivas Machuca, Marlon Sebastian
+- Toribio Flores, Joe Alexis
 
 Sistema de reservas hoteleras desplegado en AWS con Terraform, incluyendo frontend estático servido por CloudFront y backend con ECS, API Gateway, RDS PostgreSQL, Cognito y SES. Región: us-east-2.
 
