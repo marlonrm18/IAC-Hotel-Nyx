@@ -1,111 +1,95 @@
-# Hotel Nyx — Infraestructura AWS con Terraform
+# Hotel Nyx — Sistema de Reservas de Habitaciones
 
-Sistema de reservas de hotel desplegado en AWS. Atributos de calidad prioritarios: **Disponibilidad** y **Seguridad**.
+UPAO · Ingeniería de Sistemas e Inteligencia Artificial
+Curso: Infraestructura como Código · Docente: Walter Ivan Leturia Rodriguez
+Grupo 5 · Rivas Machuca, Marlon Sebastian · Toribio Flores, Joe Alexis
 
-| Atributo         | Decisión arquitectónica clave                                     |
-|------------------|-------------------------------------------------------------------|
-| Disponibilidad   | Multi-AZ en RDS, NAT GW por AZ, ECS min 2 tareas, ALB cross-AZ  |
-| Seguridad        | VPC privada, SGs de mínimo privilegio, KMS, Secrets Manager, TLS |
+Sistema de reservas hoteleras desplegado en AWS con Terraform, incluyendo frontend estático servido por CloudFront y backend con ECS, API Gateway, RDS PostgreSQL, Cognito y SES. Región: us-east-2.
 
-## Región principal
-`us-east-2` (Ohio) — provider alias `us-east-1` sólo para certificados ACM de CloudFront.
+---
 
-## Requisitos
-- Terraform `>= 1.9`
-- AWS CLI configurado (`aws configure` o variables de entorno)
-- Permisos IAM para los servicios involucrados
-- Un par de claves KMS pre-existente o se crea dentro del módulo `database`
+## Requisitos previos
 
-## Estructura del repositorio
+- AWS CLI configurado con credenciales válidas y región `us-east-2`
+- Terraform >= 1.x instalado
 
-```
-Hotel-Nyx/
-├── environments/
-│   └── dev/              ← punto de entrada de Terraform
-│       ├── versions.tf
-│       ├── providers.tf
-│       ├── variables.tf
-│       ├── main.tf       ← llama a los módulos
-│       ├── outputs.tf
-│       └── dev.tfvars.example
-└── modules/
-    ├── networking/
-    ├── security-groups/
-    ├── ecr/
-    ├── alb/
-    ├── ecs/
-    ├── database/
-    ├── cognito/
-    ├── api-gateway/
-    ├── frontend/
-    ├── dns/
-    ├── messaging/
-    └── monitoring/
-```
+---
 
-## Uso rápido
+## Paso 1 — Bootstrap
+
+Solo se ejecuta una vez. Crea el bucket S3 de estado remoto y la tabla DynamoDB de locks.
 
 ```bash
-cd environments/dev
-
-# 1. Copiar y editar variables
-cp dev.tfvars.example dev.tfvars   # dev.tfvars está en .gitignore
-
-# 2. Inicializar
+cd iac/bootstrap
+copy terraform.tfvars.example terraform.tfvars
+# name_suffix = "hotelnyx-marlon-joe-2026"
 terraform init
-
-# 3. Revisar plan
-terraform plan -var-file="dev.tfvars"
-
-# 4. Aplicar (sólo tras revisión manual)
-terraform apply -var-file="dev.tfvars"
+terraform plan
+terraform apply
 ```
 
-## Módulos
+Recursos creados:
+- S3 bucket `hotel-nyx-tfstate-hotelnyx-marlon-joe-2026` — versionado, cifrado AES256, bloqueado al público
+- DynamoDB table `hotel-nyx-tflocks` — PAY_PER_REQUEST, clave LockID
 
-| Módulo           | Descripción                                                        |
-|------------------|--------------------------------------------------------------------|
-| `networking`     | VPC /16, 2 AZs, subnets púb/priv, IGW, NAT GW por AZ             |
-| `security-groups`| SG-ALB, SG-ECS, SG-RDS con mínimo privilegio                      |
-| `ecr`            | Repositorios svc-reservas y svc-pagos, scan on push               |
-| `alb`            | ALB HTTPS (443), redirect 80→443, target groups IP para Fargate   |
-| `ecs`            | Cluster Fargate, servicios reservas y pagos, auto-scaling         |
-| `database`       | RDS PostgreSQL Multi-AZ, KMS, Secrets Manager, Performance Insights|
-| `cognito`        | User Pool, app client, scopes hotel-api                           |
-| `api-gateway`    | API Gateway Regional, authorizer Cognito JWT, dominio custom      |
-| `frontend`       | S3 privado + CloudFront OAC, TLS 1.2+, cert ACM us-east-1        |
-| `dns`            | Route 53: raíz/www → CloudFront, api.hotelnyx.com → API GW       |
-| `messaging`      | SES domain identity DKIM + VPC Interface Endpoint (PrivateLink)  |
-| `monitoring`     | CloudWatch logs/alarms/dashboard, SNS topic                       |
+---
 
-## Convenciones de etiquetas
+## Paso 2 — Infraestructura principal
 
-Todos los recursos reciben `default_tags` vía el provider:
-
-```
-Project     = "hotel-nyx"
-Environment = <dev|staging|prod>
-ManagedBy   = "terraform"
+```bash
+cd iac
+copy backend.hcl.example backend.hcl
+terraform init -backend-config backend.hcl
+terraform plan
+terraform apply
 ```
 
-## Migraciones de base de datos — un solo dueño
+---
 
-Solo **svc-reservas** aplica migraciones (`prisma migrate deploy`) contra la RDS.
-Es el único dueño del esquema, incluida la *exclusion constraint* anti-doble-reserva
-(`app/reservas/prisma/migrations/20260618090106_init/migration.sql`).
+## Paso 3 — Desplegar el frontend
 
-**svc-pagos NO migra**: únicamente se conecta a la BD ya migrada. No tiene script
-ni comando de migración y su arranque (`CMD ["node", "src/index.js"]`) nunca dispara
-una migración. Su `schema.prisma` existe solo para `prisma generate` (cliente tipado).
+```bash
+aws s3 sync app/frontend s3://hotel-nyx-dev-frontend-978850043984 --delete
+```
 
-Esto evita migraciones concurrentes desde dos servicios (race conditions / locks)
-y mantiene un único punto de verdad del esquema.
+---
 
-## Seguridad — checklist rápido
+## Paso 4 — Invalidar cache de CloudFront
 
-- [ ] Ningún secreto hardcodeado (`random_password` + Secrets Manager)
-- [ ] Cifrado KMS en RDS, S3 y CloudWatch Logs
-- [ ] TLS mínimo 1.2 en CloudFront y ALB
-- [ ] SGs sin regla `0.0.0.0/0` entrante excepto ALB 443
-- [ ] Tareas ECS en subnets privadas
-- [ ] SES via PrivateLink (sin salir por NAT)
+```bash
+aws cloudfront create-invalidation --distribution-id E3BLJYM49TIJP0 --paths "/*"
+```
+
+Esperar 1-2 minutos. La web queda disponible en:
+
+```
+https://d17vxoaph6y320.cloudfront.net
+```
+
+Nota: entregable Semana 12 presentado sin dominio personalizado, pendiente de adquisicion.
+
+---
+
+## Teardown
+
+```bash
+cd iac
+terraform destroy
+```
+
+El bucket de estado y la tabla DynamoDB del bootstrap se eliminan manualmente si es necesario.
+
+---
+
+## Arquitectura AWS (us-east-2)
+
+| Servicio            | Uso                              |
+|---------------------|----------------------------------|
+| S3 + CloudFront     | Frontend estático con CDN        |
+| ECS Fargate         | Backend containerizado           |
+| API Gateway         | Endpoints REST                   |
+| RDS PostgreSQL      | Base de datos de reservas        |
+| Cognito             | Autenticación de usuarios        |
+| SES                 | Emails de confirmación           |
+| CloudWatch          | Monitoreo y logs                 |
+```
