@@ -226,7 +226,8 @@ resource "aws_cloudfront_distribution" "main" {
     cloudfront_default_certificate = var.enable_custom_domain ? null : true
     acm_certificate_arn            = var.enable_custom_domain ? aws_acm_certificate_validation.cloudfront[0].certificate_arn : null
     ssl_support_method             = var.enable_custom_domain ? "sni-only" : null
-    minimum_protocol_version       = var.enable_custom_domain ? "TLSv1.2_2021" : null
+    # AWS_174 poniendo como version minima TLSv1.2_2021
+    minimum_protocol_version       = "TLSv1.2_2021"
   }
 
   tags = { Name = "${var.project}-${var.environment}-cf-distribution" }
