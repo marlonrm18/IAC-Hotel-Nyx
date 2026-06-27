@@ -169,6 +169,11 @@ resource "aws_cloudfront_origin_access_control" "frontend" {
 }
 
 # ─── CloudFront Distribution ──────────────────────────────────────────────────
+# Solución CKV2_AWS_32: obtenemos la policy de cabeceras de seguridad que AWS ya tiene lista,
+# así no tenemos que crearla nosotros desde cero.
+data "aws_cloudfront_response_headers_policy" "security" {
+  name = "Managed-SecurityHeadersPolicy"
+}
 
 resource "aws_cloudfront_distribution" "main" {
   enabled             = true
@@ -197,6 +202,9 @@ resource "aws_cloudfront_distribution" "main" {
     # No se pueden especificar TTL inline cuando cache_policy_id está definido.
     cache_policy_id          = "658327ea-f89d-4fab-a63d-7e88639e58f6"
     origin_request_policy_id = "88a5eaf4-2fd4-4709-b370-b4c650ea3fcf"
+    # Solución CKV2_AWS_32: le decimos a CloudFront que use la policy de arriba
+    # para agregar cabeceras de seguridad (HSTS, X-Frame-Options, etc.) en cada respuesta.
+    response_headers_policy_id = data.aws_cloudfront_response_headers_policy.security.id
   }
 
   # SPA routing: S3 devuelve 403 para rutas inexistentes → servir index.html con 200.
