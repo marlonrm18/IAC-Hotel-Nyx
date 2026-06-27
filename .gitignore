@@ -30,3 +30,7 @@ override.tf.json
 *.swo
 .DS_Store
 Thumbs.db
+
+# ─── Reportes temporales de Checkov ─────────────────────────
+results.xml
+results.xml/
