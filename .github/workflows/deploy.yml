@@ -267,3 +267,76 @@ jobs:
           aws cloudfront create-invalidation \
             --distribution-id "${{ steps.tfout.outputs.cf }}" \
             --paths "/*"
+
+  # ── 6) SonarQube — análisis de calidad (INFORMATIVO, no bloquea el deploy) ───
+  # Job independiente: NO declara 'needs' y ningún otro job lo necesita, así que
+  # corre en paralelo y su resultado nunca bloquea build/terraform/frontend.
+  # La instancia se levanta efímera vía compose y se destruye al final.
+  sonarqube:
+    name: sonarqube (análisis de calidad)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Levantar SonarQube (compose efímero)
+        working-directory: sonarqube
+        run: docker compose up -d
+
+      - name: Esperar a que SonarQube esté UP
+        run: |
+          for i in $(seq 1 30); do
+            status=$(curl -s http://localhost:9000/api/system/status || true)
+            echo "Intento $i/30 → ${status:-sin respuesta}"
+            if echo "$status" | grep -q '"status":"UP"'; then
+              echo "SonarQube UP"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "SonarQube no alcanzó estado UP a tiempo"
+          exit 1
+
+      - name: Generar token de análisis
+        id: sonar_token
+        env:
+          NEW_ADMIN_PASSWORD: ${{ secrets.SONAR_ADMIN_PASSWORD }}
+        run: |
+          curl -s -u admin:admin -X POST "http://localhost:9000/api/users/change_password" \
+            --data-urlencode "login=admin" \
+            --data-urlencode "previousPassword=admin" \
+            --data-urlencode "password=${NEW_ADMIN_PASSWORD}"
+
+          TOKEN=$(curl -s -u "admin:${NEW_ADMIN_PASSWORD}" -X POST \
+            "http://localhost:9000/api/user_tokens/generate" \
+            --data-urlencode "name=ci-${{ github.run_id }}" \
+            | grep -o '"token":"[^"]*"' | cut -d'"' -f4)
+
+          if [ -z "$TOKEN" ]; then
+            echo "No se pudo generar el token de SonarQube"; exit 1
+          fi
+          echo "::add-mask::$TOKEN"
+          echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
+
+      - name: Ejecutar sonar-scanner
+        run: |
+          docker run --rm \
+            -e SONAR_HOST_URL="http://localhost:9000" \
+            -e SONAR_TOKEN="${{ steps.sonar_token.outputs.token }}" \
+            -v "${{ github.workspace }}:/usr/src" \
+            --network host \
+            sonarsource/sonar-scanner-cli
+
+
+      - name: Verificar Quality Gate (informativo)
+        run: |
+          gate=$(curl -s -u "${{ steps.sonar_token.outputs.token }}:" \
+            "http://localhost:9000/api/qualitygates/project_status?projectKey=hotel-nyx" \
+            | grep -o '"status":"[A-Z]*"' | head -n1 | cut -d'"' -f4)
+          echo "Quality Gate (hotel-nyx): ${gate:-desconocido}"
+
+      - name: Apagar SonarQube
+        if: always()
+        working-directory: sonarqube
+        run: docker compose down -v
