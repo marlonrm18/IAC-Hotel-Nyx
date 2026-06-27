@@ -119,7 +119,7 @@ jobs:
     name: terraform apply (aprobación manual)
     needs: [build-and-push, terraform-plan]
     runs-on: ubuntu-latest
-    # 👇 Punto de control humano: el Environment "production" debe configurarse en
+    #    Punto de control humano: el Environment "production" debe configurarse en
     #    Settings → Environments con "Required reviewers". El job queda en pausa
     #    hasta que un reviewer aprueba. SIN aprobación, el apply NO corre.
     environment: production
@@ -160,7 +160,7 @@ jobs:
   db-orchestrate:
     name: ansible migrate + seed
     needs: terraform-apply
-    # ⚠️ ACCESO DE RED AL RDS PRIVADO: el RDS vive en subnets privadas y NO se
+    #    ACCESO DE RED AL RDS PRIVADO: el RDS vive en subnets privadas y NO se
     #    expone a internet. Un runner GitHub-hosted estándar NO tiene acceso a la
     #    VPC. Para que migrate/seed funcionen hay que usar UNA de estas opciones
     #    (ver README) y cambiar 'runs-on' en consecuencia:
