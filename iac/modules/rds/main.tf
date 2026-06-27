@@ -122,7 +122,7 @@ resource "aws_db_instance" "main" {
   monitoring_interval = 60
   monitoring_role_arn = aws_iam_role.rds_enhanced_monitoring.arn
 
-  # Antes   deletion_protection        = var.rds_deletion_protection
+  # CKV_AWS_293 Antes   deletion_protection        = var.rds_deletion_protection
   deletion_protection        = false
   skip_final_snapshot        = var.rds_skip_final_snapshot
   final_snapshot_identifier  = "${var.project}-${var.environment}-final-snapshot"
