@@ -22,7 +22,9 @@ resource "aws_vpc_security_group_ingress_rule" "alb_https" {
   cidr_ipv4         = "0.0.0.0/0"
 }
 
-# Puerto 80 necesario para que el listener de redirect HTTP→HTTPS funcione.
+# Puerto 80 abierto intencionalmente: el ALB listener captura el trafico HTTP
+# y lo redirige a HTTPS (443). Sin esta regla el redirect no funciona.
+# checkov:skip=CKV_AWS_260:Puerto 80 abierto intencionalmente para capturar trafico y redirigir a HTTPS en el ALB
 resource "aws_vpc_security_group_ingress_rule" "alb_http" {
   security_group_id = aws_security_group.alb.id
   description       = "HTTP desde internet (redirect 80 a 443 en ALB listener)"
