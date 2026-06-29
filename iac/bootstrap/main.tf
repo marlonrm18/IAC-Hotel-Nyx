@@ -9,6 +9,7 @@ locals {
 }
 
 # ─── Bucket S3 del state ──────────────────────────────────────────────────────
+# checkov:skip=CKV2_AWS_61:Bucket de state de Terraform; no requiere lifecycle (solo estado versionado).
 resource "aws_s3_bucket" "state" {
   bucket        = local.state_bucket_name
   force_destroy = var.force_destroy_state_bucket
