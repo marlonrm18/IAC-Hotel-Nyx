@@ -51,6 +51,7 @@ resource "aws_acm_certificate_validation" "main" {
 
 # ─── Application Load Balancer ────────────────────────────────────────────────
 
+# checkov:skip=CKV2_AWS_20:En modo demo sin dominio el ALB solo expone HTTP; sin certificado ACM no hay listener HTTPS 443 al cual redirigir. La redireccion HTTP->HTTPS se habilita con enable_custom_domain=true (produccion).
 resource "aws_lb" "main" {
   name               = "${var.project}-${var.environment}-alb"
   internal           = false
