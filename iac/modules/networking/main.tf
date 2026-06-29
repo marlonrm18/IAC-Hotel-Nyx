@@ -1,4 +1,7 @@
 # ─── VPC ─────────────────────────────────────────────────────────────────────
+# VPC flow logs omitidos en demo para evitar costos adicionales de CloudWatch.
+# Habilitar en produccion creando un aws_flow_log apuntando a un log group dedicado.
+# checkov:skip=CKV2_AWS_11:VPC flow logs omitidos en demo (costo/overhead); se habilitan en produccion.
 
 resource "aws_vpc" "main" {
   cidr_block           = var.vpc_cidr
